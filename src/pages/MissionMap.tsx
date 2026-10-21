@@ -65,8 +65,8 @@ interface DesktopMissionPathProps {
   onPreview: (_mission: PathMission) => void;
 }
 
-// Each node depends only on its own mission and coordinates, so memoizing it
-// lets unrelated page updates (grid scroll, search typing) skip the SVG.
+// Memoized so page updates that don't touch the path (grid scroll, column
+// changes) skip the SVG, and filtering only re-renders nodes that moved.
 const MissionPathNode = memo(function MissionPathNode({
   mission,
   cx,
@@ -250,11 +250,11 @@ export default function MissionMap() {
   const hasStandalone = useMemo(() => missions.some((m) => m.standalone), [missions]);
 
   // loadProgress() returns a new object on every render. Keying the derived
-  // mission states on the completed ids keeps them, and the path layout built
-  // from them, referentially stable until progress actually changes.
-  const completedMissionsKey = state.completedMissions.join('\n');
+  // mission states on the serialized completed ids keeps them, and the path
+  // layout built from them, referentially stable until progress actually changes.
+  const completedMissionsKey = JSON.stringify(state.completedMissions);
   const missionStates = useMemo(() => {
-    const completedMissions = completedMissionsKey ? completedMissionsKey.split('\n') : [];
+    const completedMissions = JSON.parse(completedMissionsKey);
     return missions.map((m) => ({
       ...m,
       completed: completedMissions.includes(m.id),
@@ -324,7 +324,7 @@ export default function MissionMap() {
   });
 
   const handleMissionClick = useCallback(
-    (mission) => {
+    (mission: PathMission) => {
       if (mission.unlocked) {
         navigate(`/mission/${mission.id}`);
       }
@@ -332,7 +332,7 @@ export default function MissionMap() {
     [navigate],
   );
 
-  const handleMissionHover = useCallback((mission) => {
+  const handleMissionHover = useCallback((mission: PathMission) => {
     if (mission.unlocked) {
       preloadMonacoEditor();
     }
